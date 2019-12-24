@@ -1,0 +1,91 @@
+---
+- name: "Installation Of Webmin"
+  hosts: happy
+  become: true
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: updating your system please wait
+      yum:
+         name: "*"
+         state: latest
+    - name: installing epel-release
+      yum:
+         name: epel-release
+         state: present
+    - name: "Installing Apache mysql php and MySQL-python "
+      yum:
+        name: 
+          - httpd
+          - mariadb-server
+          - mariadb
+          - php
+          - php-mysql
+          - php-fpm
+          - MySQL-python
+        state: present
+
+    - name: "Creating info.php"
+      copy:
+        content: "<?php phpinfo(); ?>"
+        dest: /var/www/html/info.php
+        owner: apache
+        group: apache
+        
+    - name: "Restarting Apache"
+      service:
+        name: httpd
+        state: restarted
+        enabled: true
+    - name: "Mariadb-Server - Restarting/Enabling"
+      service:
+        name: mariadb
+        state: restarted
+        enabled: true
+    
+    - name: "Madidb-Server - Reset Root-Password"
+      ignore_errors: true
+      mysql_user:
+        login_user: 'root'
+        login_password: ''
+        user: 'root'
+        password: '{{ mysql_root }}'
+        host_all: true
+    - name: "Mariadb-Server - Restarting/Enabling"
+      service:
+        name: mariadb
+        state: restarted
+        enabled: true
+
+    - name: "Mariadb-Server - Removing Anonymous Users"
+      mysql_user:
+        login_user: 'root'
+        login_password: '{{ mysql_root }}'
+        user: ''
+        host_all: true
+        state: absent
+    - name: "Mariadb-Server - Removing test database"
+      mysql_db:
+        login_user: 'root'
+        login_password: '{{ mysql_root }}'
+        name: 'test'
+        state: absent
+    - name: "Copying Webmin repo file"
+      copy:
+        src: webmin.repo
+        dest: /etc/yum.repos.d/webmin.repo
+    - name: "downloading key for webmin"
+      get_url:
+        url: http://www.webmin.com/jcameron-key.asc
+        dest: ./
+    - name: "importing key"
+      shell: rpm --import jcameron-key.asc
+   
+    - name: installing webmin
+      yum: 
+        name: webmin
+      state: present
+    - name: installation is finished 
+      debug:
+        msg: "Webmin install complete. You can now login to https://your_domain:10000/ as root with your root password."
